@@ -20,7 +20,7 @@ class Socket(BasePartObject):
         self,
         hole_profile: HoleProfile,
         wall_thickness: float,
-        edge_chamfer: float = 0,
+        sides_chamfer: float = 0,
         rotation: RotationLike = (0, 0, 0),
         align: Align | tuple[Align, Align, Align] = Align.CENTER,
         mode: Mode = Mode.ADD,
@@ -35,8 +35,8 @@ class Socket(BasePartObject):
         with BuildPart() as part_b:
             with BuildSketch(Plane.XZ):
                 r = Rectangle(self.socket_size, self.socket_size)
-                if edge_chamfer > 0:
-                    chamfer(r.vertices(), edge_chamfer)
+                if sides_chamfer:
+                    chamfer(r.vertices(), sides_chamfer)
             extrude(amount=self.socket_depth)
 
             for s in hole_profile:
@@ -48,6 +48,16 @@ class Socket(BasePartObject):
         super().__init__(part_b.part, rotation, align, mode)
 
 
+@dataclass
+class RazorBracketChamfers:
+    sides: bool = False
+    front: float = 0
+    front_hole: float = 0
+    back: float = 0
+    back_hole: float = 0
+    slot: float = 0
+
+
 class RazorBracket(BasePartObject):
     def __init__(
         self,
@@ -55,13 +65,17 @@ class RazorBracket(BasePartObject):
         wall_thickness: float,
         slot_size: float,
         slot_offset: float = 0,
-        edge_chamfer: float = 0,
+        chamfers: RazorBracketChamfers = RazorBracketChamfers(),
         rotation: RotationLike = (0, 0, 0),
         align: Align | tuple[Align, Align, Align] = Align.CENTER,
         mode: Mode = Mode.ADD,
     ):
         with BuildPart() as part_b:
-            socket = Socket(hole_profile, wall_thickness, slot_size)
+            socket = Socket(
+                hole_profile=hole_profile,
+                wall_thickness=wall_thickness,
+                sides_chamfer=slot_size if chamfers.sides else 0,
+            )
 
             with BuildSketch(Plane.YZ):
                 with Locations(
@@ -74,17 +88,22 @@ class RazorBracket(BasePartObject):
                     Rectangle(slot_size, slot_size)
             extrude(until=Until.LAST, both=True, mode=Mode.SUBTRACT)
 
-            if edge_chamfer > 0:
-                # x_edges = (
-                #     part_b.edges().filter_by(Axis.X).group_by(Axis.Z, reverse=True)
-                # )
-                # chamfer((x_edges[0] > Axis.Y)[1:3], edge_chamfer / 2)
-                # chamfer((x_edges[1] > Axis.Y)[0:2], edge_chamfer / 2)
+            if chamfers.slot:
+                x_edges = (
+                    part_b.edges().filter_by(Axis.X).group_by(Axis.Z, reverse=True)
+                )
+                chamfer((x_edges[0] > Axis.Y)[1:3], chamfers.slot)
+                chamfer((x_edges[1] > Axis.Y)[0:2], chamfers.slot)
 
-                xz_faces = part_b.faces() | Plane.XZ > Axis.Y
-                chamfer(xz_faces[0].edges(), edge_chamfer)
-                chamfer(xz_faces[-1].edges() | GeomType.LINE, edge_chamfer)
-                chamfer(xz_faces[-1].edges() | GeomType.CIRCLE, edge_chamfer / 2)
+            xz_faces = part_b.faces() | Plane.XZ > Axis.Y
+            if chamfers.front:
+                chamfer(xz_faces[0].edges() | GeomType.LINE, chamfers.front)
+            if chamfers.front_hole:
+                chamfer(xz_faces[0].edges() | GeomType.CIRCLE, chamfers.front_hole)
+            if chamfers.back:
+                chamfer(xz_faces[-1].edges() | GeomType.LINE, chamfers.back)
+            if chamfers.back_hole:
+                chamfer(xz_faces[-1].edges() | GeomType.CIRCLE, chamfers.back_hole)
 
         part_b.part.label = "Razor Bracket"
         super().__init__(part_b.part, rotation, align, mode)
@@ -102,7 +121,9 @@ result = RazorBracket(
     wall_thickness=2,
     slot_size=1.5,
     slot_offset=2,
-    edge_chamfer=1,
+    chamfers=RazorBracketChamfers(
+        sides=True, front=1, front_hole=1, back=1, back_hole=0.5, slot=0
+    ),
 )
 if len(sys.argv) == 2:
     export_step(result, os.path.abspath(sys.argv[1]))
