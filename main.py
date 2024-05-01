@@ -1,4 +1,5 @@
 import functools
+import os
 import sys
 from typing import List, Tuple, Union
 from build123d import *
@@ -92,9 +93,8 @@ result = RazorBracket(
     slot_offset=2,
     edge_chamfer=1,
 )
-
 if len(sys.argv) == 2:
-    export_step(result, sys.argv[1])
+    export_step(result, os.path.abspath(sys.argv[1]))
 else:
     show(
         result,

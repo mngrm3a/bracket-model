@@ -1,0 +1,5 @@
+build123d @ git+https://github.com/gumyr/build123d@efaf89408e1986d30c54f51648330903c2e461b9
+cadquery @ git+https://github.com/CadQuery/cadquery.git
+ocp-tessellate==2.2.2
+ocp-vscode==2.2.2
+ocpsvg==0.2.0
