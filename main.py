@@ -1,7 +1,6 @@
 import functools
 import os
 import sys
-from typing import List, Tuple, Union
 from build123d import *
 from ocp_vscode import *
 
@@ -9,11 +8,11 @@ from ocp_vscode import *
 class Socket(BasePartObject):
     def __init__(
         self,
-        hole_profile: List[Tuple[float, float]],
+        hole_profile: list[tuple[float, float]],
         wall_thickness: float,
         edge_chamfer: float = 0,
         rotation: RotationLike = (0, 0, 0),
-        align: Union[Align, Tuple[Align, Align, Align]] = Align.CENTER,
+        align: Align | tuple[Align, Align, Align] = Align.CENTER,
         mode: Mode = Mode.ADD,
     ):
         max_inner_radius, self.socket_depth = functools.reduce(
@@ -40,13 +39,13 @@ class Socket(BasePartObject):
 class RazorBracket(BasePartObject):
     def __init__(
         self,
-        hole_profile: List[Tuple[float, float]],
+        hole_profile: list[tuple[float, float]],
         wall_thickness: float,
         slot_size: float,
         slot_offset: float = 0,
         edge_chamfer: float = 0,
         rotation: RotationLike = (0, 0, 0),
-        align: Union[Align, Tuple[Align, Align, Align]] = Align.CENTER,
+        align: Align | tuple[Align, Align, Align] = Align.CENTER,
         mode: Mode = Mode.ADD,
     ):
         with BuildPart() as part_b:
