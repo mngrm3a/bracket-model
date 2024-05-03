@@ -1,5 +1,6 @@
 from build123d import *
-from bracket.socket import *
+from dataclasses import dataclass
+from bracket.socket import Socket, HoleProfile
 
 
 @dataclass

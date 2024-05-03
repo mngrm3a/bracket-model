@@ -1,9 +1,9 @@
-from dataclasses import dataclass
 import os
 import sys
+from ocp_vscode import show, Camera
 from build123d import *
-from ocp_vscode import *
-from bracket.razor import *
+from bracket.socket import HoleSection
+from bracket.razor import RazorBracket, RazorBracketChamfers
 
 
 SOCKET_HOLE_SECTIONS = [
