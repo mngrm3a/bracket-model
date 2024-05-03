@@ -41,5 +41,10 @@ class Socket(BasePartObject):
                     Circle(s.radius)
                 extrude(amount=-s.depth, mode=Mode.SUBTRACT)
 
+        RigidJoint(
+            "socket_joint",
+            part_b.part,
+            Plane((part_b.faces() < Axis.Y).last).location,
+        )
         part_b.part.label = "Socket"
         super().__init__(part_b.part, rotation, align, mode)

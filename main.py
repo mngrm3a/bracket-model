@@ -28,5 +28,6 @@ else:
     show(
         result,
         measure_tools=True,
+        render_joints=True,
         reset_camera=Camera.KEEP,
     )
