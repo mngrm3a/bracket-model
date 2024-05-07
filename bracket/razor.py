@@ -1,3 +1,4 @@
+from typing import Iterable
 import build123d as bd
 from dataclasses import dataclass
 from bracket.socket import Socket, HoleProfile
@@ -25,46 +26,47 @@ class RazorBracket(bd.BasePartObject):
         align: bd.Align | tuple[bd.Align, bd.Align, bd.Align] = bd.Align.CENTER,
         mode: bd.Mode = bd.Mode.ADD,
     ):
-        socket = Socket(
+        part = Socket(
             hole_profile=hole_profile,
             wall_thickness=wall_thickness,
             chamfers=slot_size if chamfers.sides else 0,
         )
-        with bd.BuildPart() as part_b:
-            bd.add(socket)
-            with bd.BuildSketch(bd.Plane.YZ):
-                with bd.Locations(
-                    (
-                        (-socket.socket_depth + slot_size) / 2 + slot_offset,
-                        (socket.socket_size - slot_size) / 2,
-                        0,
-                    )
-                ):
-                    bd.Rectangle(slot_size, slot_size)
-            bd.extrude(until=bd.Until.LAST, both=True, mode=bd.Mode.SUBTRACT)
+        socket_size = part.socket_size
+        socket_depth = part.socket_depth
 
-            if chamfers.slot:
-                x_edges = (
-                    part_b.edges()
-                    .filter_by(bd.Axis.X)
-                    .group_by(bd.Axis.Z, reverse=True)
+        part -= bd.extrude(
+            (
+                bd.Plane.YZ
+                * bd.Pos(
+                    (-socket_depth + slot_size) / 2 + slot_offset,
+                    (socket_size - slot_size) / 2,
                 )
-                bd.chamfer((x_edges[0] > bd.Axis.Y)[1:3], chamfers.slot)
-                bd.chamfer((x_edges[1] > bd.Axis.Y)[0:2], chamfers.slot)
+                * bd.Rectangle(slot_size, slot_size)
+            ),
+            socket_size / 2,
+            both=True,
+        )
 
-            xz_faces = part_b.faces() | bd.Plane.XZ > bd.Axis.Y
-            if chamfers.front:
-                bd.chamfer(xz_faces[0].edges() | bd.GeomType.LINE, chamfers.front)
-            if chamfers.front_hole:
-                bd.chamfer(
-                    xz_faces[0].edges() | bd.GeomType.CIRCLE, chamfers.front_hole
-                )
-            if chamfers.back:
-                bd.chamfer(xz_faces[-1].edges() | bd.GeomType.LINE, chamfers.back)
-            if chamfers.back_hole:
-                bd.chamfer(
-                    xz_faces[-1].edges() | bd.GeomType.CIRCLE, chamfers.back_hole
-                )
+        def chamfer_part(edges: Iterable[bd.Edge], length: float) -> None:
+            nonlocal part
+            part = part.chamfer(length=length, length2=None, edge_list=edges)
 
-        part_b.part.label = "Razor Bracket"
-        super().__init__(part_b.part, rotation, align, mode)
+        if chamfers.slot:
+            x_edges = (
+                part.edges().filter_by(bd.Axis.X).group_by(bd.Axis.Z, reverse=True)
+            )
+            chamfer_part((x_edges[0] > bd.Axis.Y)[1:3], chamfers.slot)
+            chamfer_part((x_edges[1] > bd.Axis.Y)[0:2], chamfers.slot)
+
+        xz_edges = [f.edges() for f in part.faces() | bd.Plane.XZ > bd.Axis.Y]
+        if chamfers.front:
+            chamfer_part(xz_edges[0] | bd.GeomType.LINE, chamfers.front)
+        if chamfers.front_hole:
+            chamfer_part(xz_edges[0] | bd.GeomType.CIRCLE, chamfers.front_hole)
+        if chamfers.back:
+            chamfer_part(xz_edges[-1] | bd.GeomType.LINE, chamfers.back)
+        if chamfers.back_hole:
+            chamfer_part(xz_edges[-1] | bd.GeomType.CIRCLE, chamfers.back_hole)
+
+        part.label = "Razor Bracket"
+        super().__init__(part, rotation, align, mode)
