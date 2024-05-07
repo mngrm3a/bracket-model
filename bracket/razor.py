@@ -25,13 +25,13 @@ class RazorBracket(bd.BasePartObject):
         align: bd.Align | tuple[bd.Align, bd.Align, bd.Align] = bd.Align.CENTER,
         mode: bd.Mode = bd.Mode.ADD,
     ):
+        socket = Socket(
+            hole_profile=hole_profile,
+            wall_thickness=wall_thickness,
+            chamfers=slot_size if chamfers.sides else 0,
+        )
         with bd.BuildPart() as part_b:
-            socket = Socket(
-                hole_profile=hole_profile,
-                wall_thickness=wall_thickness,
-                chamfers=slot_size if chamfers.sides else 0,
-            )
-
+            bd.add(socket)
             with bd.BuildSketch(bd.Plane.YZ):
                 with bd.Locations(
                     (
