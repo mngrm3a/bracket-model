@@ -1,9 +1,9 @@
+import build123d as bd
+import ocp_vscode as viewer
 import os
 import sys
 from bracket.razor import RazorBracket, RazorBracketChamfers
 from bracket.socket import HoleProfile
-from build123d import *
-from ocp_vscode import show, Camera
 
 
 SOCKET_HOLE_SECTIONS = HoleProfile(
@@ -25,11 +25,11 @@ result = RazorBracket(
     ),
 )
 if len(sys.argv) == 2:
-    export_step(result, os.path.abspath(sys.argv[1]))
+    bd.export_step(result, os.path.abspath(sys.argv[1]))
 else:
-    show(
+    viewer.show(
         result,
         measure_tools=True,
         render_joints=True,
-        reset_camera=Camera.KEEP,
+        reset_camera=viewer.Camera.KEEP,
     )
