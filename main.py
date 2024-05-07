@@ -1,9 +1,9 @@
 import os
 import sys
-from ocp_vscode import show, Camera
-from build123d import *
-from bracket.socket import HoleProfile
 from bracket.razor import RazorBracket, RazorBracketChamfers
+from bracket.socket import HoleProfile
+from build123d import *
+from ocp_vscode import show, Camera
 
 
 SOCKET_HOLE_SECTIONS = HoleProfile(

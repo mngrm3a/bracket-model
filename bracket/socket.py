@@ -1,7 +1,7 @@
+import build123d as bd
 import collections.abc
 import functools
 from dataclasses import dataclass
-import build123d as bd
 
 
 @dataclass
