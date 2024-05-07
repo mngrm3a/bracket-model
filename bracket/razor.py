@@ -29,7 +29,7 @@ class RazorBracket(BasePartObject):
             socket = Socket(
                 hole_profile=hole_profile,
                 wall_thickness=wall_thickness,
-                sides_chamfer=slot_size if chamfers.sides else 0,
+                chamfers=slot_size if chamfers.sides else 0,
             )
 
             with BuildSketch(Plane.YZ):

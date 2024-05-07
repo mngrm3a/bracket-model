@@ -33,31 +33,32 @@ class Socket(bd.BasePartObject):
         self,
         hole_profile: HoleProfile,
         wall_thickness: float,
-        sides_chamfer: float = 0,
+        chamfers: float = 0,
         rotation: bd.RotationLike = (0, 0, 0),
         align: bd.Align | tuple[bd.Align, bd.Align, bd.Align] = bd.Align.CENTER,
         mode: bd.Mode = bd.Mode.ADD,
     ):
         self.hole_profile = hole_profile
-        max_inner_radius, self.socket_depth = hole_profile.outer_profile()
-        self.socket_size = 2 * (max_inner_radius + wall_thickness)
+        max_hole_radius, self.socket_depth = hole_profile.outer_profile()
+        self.socket_size = 2 * (max_hole_radius + wall_thickness)
 
-        with bd.BuildPart() as part_b:
-            with bd.BuildSketch(bd.Plane.XZ):
-                r = bd.Rectangle(self.socket_size, self.socket_size)
-                if sides_chamfer:
-                    bd.chamfer(r.vertices(), sides_chamfer)
-            bd.extrude(amount=self.socket_depth)
+        part = bd.Plane.ZX * bd.Rectangle(self.socket_size, self.socket_size)
+        if chamfers:
+            part = bd.chamfer(part.vertices(), chamfers)
+        part = bd.extrude(part, self.socket_depth)
 
-            for s in hole_profile:
-                with bd.BuildSketch((part_b.faces() | bd.Plane.XZ > bd.Axis.Y)[-2:][0]):
-                    bd.Circle(s.radius)
-                bd.extrude(amount=-s.depth, mode=bd.Mode.SUBTRACT)
+        for section in self.hole_profile:
+            part -= bd.extrude(
+                bd.Plane((part.faces() | bd.Plane.XZ > bd.Axis.Y)[-2:][0])
+                * bd.Circle(section.radius),
+                amount=-section.depth,
+            )
 
-        bd.RigidJoint(
-            "socket_joint",
-            part_b.part,
-            bd.Plane((part_b.faces() < bd.Axis.Y).last).location,
-        )
-        part_b.part.label = "Socket"
-        super().__init__(part_b.part, rotation, align, mode)
+        for j in [("top", (0, 0, self.socket_size / 2)), ("center", (0, 0, 0))]:
+            bd.RigidJoint(
+                j[0],
+                part,
+                bd.Location(j[1], bd.Plane.XZ.location.orientation),
+            )
+        part.label = "Socket"
+        super().__init__(part, rotation, align, mode)
