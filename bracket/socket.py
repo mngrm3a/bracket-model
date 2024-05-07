@@ -1,3 +1,4 @@
+import collections.abc
 import functools
 from dataclasses import dataclass
 from build123d import *
@@ -9,7 +10,22 @@ class HoleSection:
     depth: float
 
 
-HoleProfile = list[HoleSection]
+class HoleProfile(collections.abc.Iterable[HoleSection]):
+    def __init__(self, items: list[HoleSection]):
+        self.items = items
+
+    def __init__(self, items: list[tuple[float, float]]):
+        self.items = [HoleSection(item[0], item[1]) for item in items]
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def outer_profile(self) -> tuple[float, float]:
+        return functools.reduce(
+            lambda a, x: (max(a[0], x.radius), a[1] + x.depth),
+            self,
+            (0, 0),
+        )
 
 
 class Socket(BasePartObject):
@@ -22,11 +38,7 @@ class Socket(BasePartObject):
         align: Align | tuple[Align, Align, Align] = Align.CENTER,
         mode: Mode = Mode.ADD,
     ):
-        max_inner_radius, self.socket_depth = functools.reduce(
-            lambda a, x: (max(a[0], x.radius), a[1] + x.depth),
-            hole_profile,
-            (0, 0),
-        )
+        max_inner_radius, self.socket_depth = hole_profile.outer_profile()
         self.socket_size = 2 * (max_inner_radius + wall_thickness)
 
         with BuildPart() as part_b:

@@ -2,16 +2,18 @@ import os
 import sys
 from ocp_vscode import show, Camera
 from build123d import *
-from bracket.socket import HoleSection
+from bracket.socket import HoleProfile
 from bracket.razor import RazorBracket, RazorBracketChamfers
 
 
-SOCKET_HOLE_SECTIONS = [
-    HoleSection(7, 4),  # nut top
-    HoleSection(4.5, 3),  # nut bottom
-    HoleSection(2, 2),  # screw / thread
-    HoleSection(8.5, 1.5),  # cup
-]
+SOCKET_HOLE_SECTIONS = HoleProfile(
+    [
+        (7, 4),  # nut top
+        (4.5, 3),  # nut bottom
+        (2, 2),  # screw / thread
+        (8.5, 1.5),  # cup
+    ]
+)
 
 result = RazorBracket(
     hole_profile=SOCKET_HOLE_SECTIONS,
