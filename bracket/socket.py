@@ -1,31 +1,45 @@
-import build123d as bd
-import collections.abc
-import functools
 from dataclasses import dataclass
+import build123d as bd
+from collections.abc import Iterable, Iterator
 
 
 @dataclass
 class HoleSection:
-    radius: float
-    depth: float
+    radius: float = (0,)
+    depth: float = 0
 
 
-class HoleProfile(collections.abc.Iterable[HoleSection]):
-    def __init__(self, items: list[HoleSection]):
-        self.items = items
+class HoleProfile(Iterable[HoleSection]):
+    def __init__(self, items: Iterable[tuple[float, float]]) -> None:
+        if not len(items):
+            raise ValueError(f"items must not be empty")
+        self._max_radius: float = 0
+        self._depth: float = 0
+        for item in items:
+            if item[0] <= 0 or item[1] <= 0:
+                raise ValueError(f"radius or depth <= 0: ${item}")
+            self._max_radius = max(self._max_radius, item[0])
+            self._depth += item[1]
+        self._items: list[HoleSection] = [HoleSection(i[0], i[1]) for i in items]
 
-    def __init__(self, items: list[tuple[float, float]]):
-        self.items = [HoleSection(item[0], item[1]) for item in items]
+    def __iter__(self) -> Iterator[HoleSection]:
+        return iter(self._items)
 
-    def __iter__(self):
-        return iter(self.items)
+    @property
+    def max_radius(self) -> float:
+        return self._max_radius
 
-    def outer_profile(self) -> tuple[float, float]:
-        return functools.reduce(
-            lambda a, x: (max(a[0], x.radius), a[1] + x.depth),
-            self,
-            (0, 0),
-        )
+    @property
+    def depth(self) -> float:
+        return self._depth
+
+    @property
+    def first_section(self) -> HoleSection:
+        return self._items[0]
+
+    @property
+    def last_section(self) -> HoleSection:
+        return self._items[-1]
 
 
 class Socket(bd.BasePartObject):
@@ -38,23 +52,22 @@ class Socket(bd.BasePartObject):
         align: bd.Align | tuple[bd.Align, bd.Align, bd.Align] = bd.Align.CENTER,
         mode: bd.Mode = bd.Mode.ADD,
     ):
-        self.hole_profile = hole_profile
-        max_hole_radius, self.socket_depth = hole_profile.outer_profile()
-        self.socket_size = 2 * (max_hole_radius + wall_thickness)
+        socket_size, socket_depth = Socket.calc_dimensions(hole_profile, wall_thickness)
+        Socket.validate_arguments(wall_thickness, chamfers, socket_size)
 
-        part = bd.Plane.ZX * bd.Rectangle(self.socket_size, self.socket_size)
+        part = bd.Plane.ZX * bd.Rectangle(socket_size, socket_size)
         if chamfers:
             part = bd.chamfer(part.vertices(), chamfers)
-        part = bd.extrude(part, self.socket_depth)
+        part = bd.extrude(part, socket_depth)
 
-        for section in self.hole_profile:
+        for section in hole_profile:
             part -= bd.extrude(
                 bd.Plane((part.faces() | bd.Plane.XZ > bd.Axis.Y)[-2:][0])
                 * bd.Circle(section.radius),
                 amount=-section.depth,
             )
 
-        for j in [("top", (0, 0, self.socket_size / 2)), ("center", (0, 0, 0))]:
+        for j in [("top", (0, 0, socket_size / 2)), ("center", (0, 0, 0))]:
             bd.RigidJoint(
                 j[0],
                 part,
@@ -62,3 +75,21 @@ class Socket(bd.BasePartObject):
             )
         part.label = "Socket"
         super().__init__(part, rotation, align, mode)
+
+    @staticmethod
+    def calc_dimensions(
+        hole_profile: HoleProfile,
+        wall_thickness: float,
+    ) -> tuple[float, float]:
+        return 2 * (hole_profile.max_radius + wall_thickness), hole_profile.depth
+
+    @staticmethod
+    def validate_arguments(
+        wall_thickness: float,
+        chamfers: float,
+        socket_size: float,
+    ) -> None:
+        if wall_thickness < 0:
+            raise ValueError(f"{wall_thickness=} < 0")
+        if 2 * chamfers >= socket_size:
+            raise ValueError(f"{(2 * chamfers)=} >= {socket_size}")

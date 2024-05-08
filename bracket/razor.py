@@ -25,16 +25,22 @@ class RazorBracket(bd.BasePartObject):
         rotation: bd.RotationLike = (0, 0, 0),
         align: bd.Align | tuple[bd.Align, bd.Align, bd.Align] = bd.Align.CENTER,
         mode: bd.Mode = bd.Mode.ADD,
-    ):
+    ) -> None:
+        socket_size, socket_depth = Socket.calc_dimensions(hole_profile, wall_thickness)
+        RazorBracket.validate_arguments(
+            hole_profile,
+            socket_size,
+            socket_depth,
+            slot_size,
+            slot_offset,
+            chamfers,
+        )
+
         part = Socket(
             hole_profile=hole_profile,
             wall_thickness=wall_thickness,
             chamfers=slot_size if chamfers.sides else 0,
-        )
-        socket_size = part.socket_size
-        socket_depth = part.socket_depth
-
-        part -= bd.extrude(
+        ) - bd.extrude(
             (
                 bd.Plane.YZ
                 * bd.Pos(
@@ -70,3 +76,43 @@ class RazorBracket(bd.BasePartObject):
 
         part.label = "Razor Bracket"
         super().__init__(part, rotation, align, mode)
+
+    @staticmethod
+    def validate_arguments(
+        hole_profile: HoleProfile,
+        socket_size: float,
+        socket_depth: float,
+        slot_size: float,
+        slot_offset: float,
+        chamfers: RazorBracketChamfers,
+    ) -> None:
+        if chamfers.front + chamfers.back >= socket_depth:
+            raise ValueError(f"{(chamfers.front + chamfers.back)=} >= {socket_depth=}")
+        if (
+            chamfers.front_hole
+            >= socket_size / 2 - hole_profile.first_section.radius - chamfers.front
+        ):
+            raise ValueError(
+                f"{chamfers.front_hole=} >= "
+                f"{(socket_size/2 - hole_profile.first_section.radius - chamfers.front)=}"
+            )
+        if chamfers.front_hole >= hole_profile.first_section.depth:
+            raise ValueError(
+                f"{chamfers.front_hole=} >= {hole_profile.first_section.depth=}"
+            )
+        if (
+            chamfers.back_hole
+            >= socket_size / 2 - hole_profile.last_section.radius - chamfers.back
+        ):
+            raise ValueError(
+                f"{(chamfers.back_hole)=} >= "
+                f"{(socket_size/2 - hole_profile.last_section.radius - chamfers.back)=}"
+            )
+        if chamfers.back_hole >= hole_profile.last_section.depth:
+            raise ValueError(
+                f"{chamfers.back_hole=} >= {hole_profile.last_section.depth=}"
+            )
+        if chamfers.slot + chamfers.front >= slot_offset:
+            raise ValueError(f"{(chamfers.slot + chamfers.front)=} >= {slot_offset=}")
+        if chamfers.slot >= slot_size:
+            raise ValueError(f"{chamfers.slot=} >= {slot_size=}")
