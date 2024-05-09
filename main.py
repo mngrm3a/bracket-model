@@ -2,8 +2,8 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from bracket.razor import RazorBracket, RazorBracketChamfers
-from bracket.socket import HoleProfile
+from holder.razor import RazorHolder, RazorHolderChamfers
+from holder.socket import HoleProfile
 
 
 SOCKET_HOLE_SECTIONS = HoleProfile(
@@ -15,15 +15,14 @@ SOCKET_HOLE_SECTIONS = HoleProfile(
     ]
 )
 
-result = RazorBracket(
+result = RazorHolder(
     hole_profile=SOCKET_HOLE_SECTIONS,
     wall_thickness=2,
     slot_size=1.5,
     slot_offset=2,
-    chamfers=RazorBracketChamfers(
-        sides=True, front=1, front_hole=1, back=1, back_hole=0.5, slot=0
-    ),
+    chamfers=RazorHolderChamfers(1, 1, 1, 1, 1, 0.5, 0.5),
 )
+
 if len(sys.argv) == 2:
     bd.export_step(result, os.path.abspath(sys.argv[1]))
 else:
