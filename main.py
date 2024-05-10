@@ -2,7 +2,7 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from holder.razor import RazorHolder, RazorHolderChamfers
+import holder.razor
 from holder.socket import HoleProfile
 
 
@@ -15,12 +15,14 @@ SOCKET_HOLE_SECTIONS = HoleProfile(
     ]
 )
 
-result = RazorHolder(
-    hole_profile=SOCKET_HOLE_SECTIONS,
-    wall_thickness=2,
-    slot_size=1.5,
-    slot_offset=2,
-    chamfers=RazorHolderChamfers(1, 1, 1, 1, 1, 0.5, 0.5),
+result = holder.socket.make_part(
+    holder.razor.Config(
+        hole_profile=SOCKET_HOLE_SECTIONS,
+        wall_thickness=2,
+        chamfers=holder.razor.Chamfers(1, 1, 1, 1, 1, 0.5, 0),
+        slot_size=1.5,
+        slot_offset=2,
+    ).validated()
 )
 
 if len(sys.argv) == 2:
@@ -28,7 +30,7 @@ if len(sys.argv) == 2:
 else:
     viewer.show(
         result,
-        measure_tools=True,
+        measure_tools=False,
         render_joints=True,
         reset_camera=viewer.Camera.KEEP,
     )

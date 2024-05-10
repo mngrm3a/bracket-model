@@ -1,84 +1,24 @@
 import build123d as bd
 from dataclasses import dataclass
 from holder.hole import HoleProfile
+from typing_extensions import Self
 
 
 @dataclass
 class Chamfers:
     top: float = 0
     bottom: float = 0
-
-
-@dataclass
-class SocketChamfers(Chamfers):
     front: float = 0
     back: float = 0
     front_hole: float = 0
     back_hole: float = 0
 
 
-class Socket(bd.BasePartObject):
-    def __init__(
-        self,
-        hole_profile: HoleProfile,
-        wall_thickness: float,
-        chamfers: SocketChamfers = SocketChamfers(),
-        rotation: bd.RotationLike = (0, 0, 0),
-        align: bd.Align | tuple[bd.Align, bd.Align, bd.Align] = bd.Align.CENTER,
-        mode: bd.Mode = bd.Mode.ADD,
-    ):
-        self.__hole_profile = hole_profile
-        self.__wall_thickness = wall_thickness
-        self.__chamfers = chamfers
-        self.__validate()
-
-        part = bd.Plane.ZX * bd.Rectangle(self.socket_size, self.socket_size)
-        if chamfers.top:
-            part = bd.chamfer(part.vertices() >> bd.Axis.Z, chamfers.top)
-        if chamfers.bottom:
-            part = bd.chamfer(part.vertices() << bd.Axis.Z, chamfers.bottom)
-        part = bd.extrude(part, self.socket_depth)
-
-        for section in hole_profile:
-            part -= bd.extrude(
-                bd.Plane((part.faces() | bd.Plane.XZ > bd.Axis.Y)[-2:][0])
-                * bd.Circle(section.radius),
-                amount=-section.depth,
-            )
-
-        def y_edges():
-            nonlocal part
-            return part.edges().group_by(bd.Axis.Y)
-
-        if chamfers.front:
-            part = bd.chamfer(y_edges()[0] | bd.GeomType.LINE, chamfers.front)
-        if chamfers.front_hole:
-            part = bd.chamfer(y_edges()[0] | bd.GeomType.CIRCLE, chamfers.front_hole)
-        if chamfers.back:
-            part = bd.chamfer(y_edges()[-1] | bd.GeomType.LINE, chamfers.back)
-        if chamfers.back_hole:
-            part = bd.chamfer(y_edges()[-1] | bd.GeomType.CIRCLE, chamfers.back_hole)
-
-        for j in [("top", (0, 0, self.socket_size / 2)), ("center", (0, 0, 0))]:
-            bd.RigidJoint(
-                j[0],
-                part,
-                bd.Location(j[1], bd.Plane.XZ.location.orientation),
-            )
-        part.label = "Socket"
-        super().__init__(part, rotation, align, mode)
-
-    @property
-    def hole_profile(self) -> HoleProfile:
-        return self.__hole_profile
-
-    @property
-    def wall_thickness(self) -> float:
-        return self.__wall_thickness
-
-    @property
-    def chamfers(self) -> SocketChamfers:
-        return self.__chamfers
+@dataclass
+class Config:
+    hole_profile: HoleProfile
+    wall_thickness: float
+    chamfers: Chamfers
 
     @property
     def socket_size(self) -> float:
@@ -88,7 +28,7 @@ class Socket(bd.BasePartObject):
     def socket_depth(self) -> float:
         return self.hole_profile.depth
 
-    def __validate(self) -> None:
+    def validated(self) -> Self:
         if self.wall_thickness < 0:
             raise ValueError(f"{self.wall_thickness=} < 0")
 
@@ -131,3 +71,44 @@ class Socket(bd.BasePartObject):
             raise ValueError(
                 f"{self.chamfers.back_hole=} >= {self.hole_profile.last_section.depth=}"
             )
+
+        return self
+
+
+def make_part(config: Config) -> bd.Part:
+    part = bd.Plane.ZX * bd.Rectangle(config.socket_size, config.socket_size)
+    if config.chamfers.top:
+        part = bd.chamfer(part.vertices() >> bd.Axis.Z, config.chamfers.top)
+    if config.chamfers.bottom:
+        part = bd.chamfer(part.vertices() << bd.Axis.Z, config.chamfers.bottom)
+    part = bd.extrude(part, config.socket_depth)
+
+    for section in config.hole_profile:
+        part -= bd.extrude(
+            bd.Plane((part.faces() | bd.Plane.XZ > bd.Axis.Y)[-2:][0])
+            * bd.Circle(section.radius),
+            amount=-section.depth,
+        )
+
+    def y_edges():
+        nonlocal part
+        return part.edges().group_by(bd.Axis.Y)
+
+    if config.chamfers.front:
+        part = bd.chamfer(y_edges()[0] | bd.GeomType.LINE, config.chamfers.front)
+    if config.chamfers.front_hole:
+        part = bd.chamfer(y_edges()[0] | bd.GeomType.CIRCLE, config.chamfers.front_hole)
+    if config.chamfers.back:
+        part = bd.chamfer(y_edges()[-1] | bd.GeomType.LINE, config.chamfers.back)
+    if config.chamfers.back_hole:
+        part = bd.chamfer(y_edges()[-1] | bd.GeomType.CIRCLE, config.chamfers.back_hole)
+
+    for j in [("top", (0, 0, config.socket_size / 2)), ("center", (0, 0, 0))]:
+        bd.RigidJoint(
+            j[0],
+            part,
+            bd.Location(j[1], bd.Plane.XZ.location.orientation),
+        )
+
+    part.label = "Socket"
+    return part
