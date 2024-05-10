@@ -1,6 +1,7 @@
 import build123d as bd
 from dataclasses import dataclass
-from holder.socket import Socket, SocketChamfers, HoleProfile
+from holder.hole import HoleProfile
+from holder.socket import Socket, SocketChamfers
 
 
 @dataclass
