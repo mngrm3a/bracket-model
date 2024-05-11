@@ -2,7 +2,7 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from part import socket, slotted_socket, brush_bracket
+from part import socket, slotted_socket, brush_bracket, brush_holder
 
 
 HOLE_PROFILE = socket.HoleProfile(
@@ -19,19 +19,35 @@ assemblies = {
         slotted_socket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
-            chamfers=slotted_socket.Chamfers(1, 1, 1, 1, 1, 0.5, 0),
             slot_size=1.5,
             slot_offset=2,
+            chamfers=slotted_socket.Chamfers(
+                top=1,
+                bottom=1,
+                front=1,
+                back=1,
+                front_hole=1,
+                back_hole=0.5,
+                slot=0,
+            ),
         ).validated()
     ),
-    "brush": brush_bracket.make_part(
+    "brush": brush_holder.make_part(
         brush_bracket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
-            chamfers=brush_bracket.Chamfers(1, 1),
+            chamfers=socket.Chamfers(),
+            # chamfers=socket.Chamfers(
+            #     top=1,
+            #     bottom=1,
+            #     front=0,
+            #     back=1,
+            #     front_hole=0,
+            #     back_hole=0.5,
+            # ),
             bracket_radius=15,
-            bracket_offset=5,
-            bracket_thickness=4,
+            bracket_offset=1.5,
+            bracket_thickness=4.5,
             bracket_opening=120,
         ).validated()
     ),

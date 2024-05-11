@@ -7,22 +7,15 @@ from typing_extensions import Self
 
 
 @dataclass
-class Chamfers:
-    top: float = 0
-    bottom: float = 0
-
-
-@dataclass
 class Config(socket.Config):
     bracket_radius: float
     bracket_offset: float
     bracket_thickness: float
     bracket_opening: float
-    chamfers: Chamfers
 
     @property
-    def height(self) -> float:
-        return 2 / 3 * self.socket_size
+    def bracket_height(self) -> float:
+        return 1 / 2 * self.socket_size
 
     @property
     def socket_edge_point(self) -> bd.Vector:
@@ -88,7 +81,7 @@ class Config(socket.Config):
 
 
 def make_part(config: Config) -> bd.Part:
-    part = bd.extrude(make_base_sketch(config), config.height) & bd.extrude(
+    part = bd.extrude(make_base_sketch(config), config.bracket_height) & bd.extrude(
         bd.Plane.YZ * make_profile_sketch(config),
         config.bracket_radius + config.bracket_thickness,
     )
@@ -117,7 +110,7 @@ def make_part(config: Config) -> bd.Part:
 
     part -= (
         bd.Plane.XZ
-        * bd.Pos(0, config.height - config.socket_size / 2)
+        * bd.Pos(0, config.bracket_height - config.socket_size / 2)
         * bd.Hole(
             config.hole_profile.first_section.radius,
             config.bracket_radius + config.bracket_offset,
@@ -130,7 +123,11 @@ def make_part(config: Config) -> bd.Part:
                 part.edges()
                 .filter_by(bd.GeomType.BSPLINE)
                 .sort_by_distance(
-                    (0, config.bracket_radius, config.height - config.socket_size / 2),
+                    (
+                        0,
+                        config.bracket_radius,
+                        config.bracket_height - config.socket_size / 2,
+                    ),
                 )[0:3]
             ),
             config.chamfers.bottom,
@@ -143,20 +140,23 @@ def make_part(config: Config) -> bd.Part:
     part += bd.mirror(part, bd.Plane.YZ.offset(0.0001 if config.chamfers.top else 0))
 
     for j in [
-        ("top", (0, config.bracket_radius + config.bracket_offset, config.height)),
+        (
+            "top",
+            (0, config.bracket_radius + config.bracket_offset, config.bracket_height),
+        ),
         (
             "center",
             (
                 0,
                 config.bracket_radius + config.bracket_offset,
-                config.height - config.socket_size / 2,
+                config.bracket_height - config.socket_size / 2,
             ),
         ),
     ]:
         bd.RigidJoint(
             j[0],
             part,
-            bd.Location(j[1], bd.Plane.ZX.location.orientation),
+            bd.Location(j[1], bd.Plane.XZ.location.orientation),
         )
     part.label = "Brush Bracket"
     return part
@@ -209,21 +209,21 @@ def make_profile_sketch(config: Config) -> bd.Sketch:
     )
 
     profile0 = bd.Line(
-        (config.bracket_radius + config.bracket_offset, config.height),
+        (config.bracket_radius + config.bracket_offset, config.bracket_height),
         (config.bracket_radius + config.bracket_offset, 0),
     )
     profile1 = bd.Spline(
         profile0 @ 1,
-        (tip_x, config.height - config.bracket_thickness),
+        (tip_x, config.bracket_height - config.bracket_thickness),
         tangents=[(-1, 1), (-1, 0)],
     )
     profile2 = bd.Polyline(
         profile1 @ 1,
         (
             -(config.bracket_radius + config.bracket_thickness),
-            config.height - config.bracket_thickness,
+            config.bracket_height - config.bracket_thickness,
         ),
-        (-(config.bracket_radius + config.bracket_thickness), config.height),
+        (-(config.bracket_radius + config.bracket_thickness), config.bracket_height),
         profile0 @ 0,
     )
 
