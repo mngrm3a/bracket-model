@@ -15,22 +15,24 @@ class Config(socket.Config):
 
     @property
     def bracket_height(self) -> float:
-        return 1 / 2 * self.socket_size
+        return self.socket_size
 
     @property
-    def socket_edge_point(self) -> bd.Vector:
+    def socket_transition_angle(self) -> float:
         def chord(radius: float, sagitta: float) -> float:
             return math.sqrt(2 * radius * sagitta - sagitta**2)
 
-        return bd.Vector(
+        point = bd.Vector(
             chord(self.bracket_radius + self.bracket_thickness, self.bracket_thickness),
             self.bracket_radius,
             0,
         )
 
+        return bd.Axis.X.direction.get_angle(point) / 2
+
     @property
-    def socket_edge_angle(self) -> float:
-        return bd.Axis.X.direction.get_angle(self.socket_edge_point)
+    def socket_transition_depth(self) -> float:
+        return self.socket_depth * 0.99
 
     @property
     def tip_angle(self) -> float:
@@ -38,7 +40,7 @@ class Config(socket.Config):
 
     @property
     def tip_sagitta(self) -> float:
-        return (self.bracket_thickness / 2) * 1.0
+        return self.bracket_thickness / 2
 
     def validated(self) -> Self:
         if not (
@@ -86,27 +88,27 @@ def make_part(config: Config) -> bd.Part:
         config.bracket_radius + config.bracket_thickness,
     )
 
-    def z_edges():
-        nonlocal part
-        return part.edges().filter_by(bd.Axis.Z, reverse=True).group_by(bd.Axis.Z)
+    # def z_edges():
+    #     nonlocal part
+    #     return part.edges().filter_by(bd.Axis.Z, reverse=True).group_by(bd.Axis.Z)
 
-    if config.chamfers.bottom:
-        part = bd.chamfer(
-            (
-                bd.ShapeList(itertools.chain(*z_edges()[:-1]))
-                .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :]
-                .sort_by(bd.Axis.Y)[:-1]
-            ),
-            config.chamfers.bottom,
-        )
+    # if config.chamfers.bottom:
+    #     part = bd.chamfer(
+    #         (
+    #             bd.ShapeList(itertools.chain(*z_edges()[:-1]))
+    #             .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :]
+    #             .sort_by(bd.Axis.Y)[:-1]
+    #         ),
+    #         config.chamfers.bottom,
+    #     )
 
-    if config.chamfers.top:
-        part = bd.chamfer(
-            z_edges()[-1]
-            .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :]
-            .sort_by(bd.Axis.Y)[:-1],
-            config.chamfers.top,
-        )
+    # if config.chamfers.top:
+    #     part = bd.chamfer(
+    #         z_edges()[-1]
+    #         .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :]
+    #         .sort_by(bd.Axis.Y)[:-1],
+    #         config.chamfers.top,
+    #     )
 
     part -= (
         bd.Plane.XZ
@@ -117,21 +119,21 @@ def make_part(config: Config) -> bd.Part:
         )
     )
 
-    if config.chamfers.bottom:
-        part = bd.chamfer(
-            (
-                part.edges()
-                .filter_by(bd.GeomType.BSPLINE)
-                .sort_by_distance(
-                    (
-                        0,
-                        config.bracket_radius,
-                        config.bracket_height - config.socket_size / 2,
-                    ),
-                )[0:3]
-            ),
-            config.chamfers.bottom,
-        )
+    # if config.chamfers.bottom:
+    #     part = bd.chamfer(
+    #         (
+    #             part.edges()
+    #             .filter_by(bd.GeomType.BSPLINE)
+    #             .sort_by_distance(
+    #                 (
+    #                     0,
+    #                     config.bracket_radius,
+    #                     config.bracket_height - config.socket_size / 2,
+    #                 ),
+    #             )[0:3]
+    #         ),
+    #         config.chamfers.bottom,
+    #     )
 
     # ! BUG: mirror fails when the top is chamfered but the left most edge above
     # ! the hole is not included.
@@ -167,13 +169,24 @@ def make_base_sketch(config: Config) -> bd.Sketch:
         (0, config.bracket_radius),
         (0, config.bracket_radius + config.bracket_offset),
         (config.socket_size / 2, config.bracket_radius + config.bracket_offset),
-        config.socket_edge_point,
+        (
+            config.socket_size / 2,
+            config.bracket_radius
+            + config.bracket_offset
+            + config.socket_transition_depth,
+        ),
     )
     outer_arc = bd.CenterArc(
         (0, 0),
         config.bracket_radius + config.bracket_thickness,
-        config.socket_edge_angle,
-        -(config.socket_edge_angle + config.tip_angle),
+        config.socket_transition_angle,
+        -(config.socket_transition_angle + config.tip_angle),
+    )
+    transition_line = bd.Spline(
+        socket_line @ 1,
+        outer_arc @ 0,
+        tangents=[(0, -1), outer_arc.tangent_at(outer_arc @ 0)],
+        tangent_scalars=[1, 1],
     )
     inner_arc = bd.CenterArc(
         (0, 0),
@@ -190,10 +203,7 @@ def make_base_sketch(config: Config) -> bd.Sketch:
     else:
         tip_line = bd.Line(outer_arc @ 1, inner_arc @ 0)
 
-    return bd.fillet(
-        bd.make_face([socket_line, outer_arc, tip_line, inner_arc]).vertices()[3],
-        config.bracket_thickness,
-    )
+    return bd.make_face([socket_line, transition_line, outer_arc, tip_line, inner_arc])
 
 
 def make_profile_sketch(config: Config) -> bd.Sketch:
@@ -208,14 +218,20 @@ def make_profile_sketch(config: Config) -> bd.Sketch:
         else 0
     )
 
-    profile0 = bd.Line(
-        (config.bracket_radius + config.bracket_offset, config.bracket_height),
+    profile0 = bd.Polyline(
+        (
+            config.bracket_radius
+            + config.bracket_offset
+            + config.socket_transition_depth,
+            config.bracket_height,
+        ),
+        (config.bracket_radius + config.bracket_offset + config.socket_depth, 0),
         (config.bracket_radius + config.bracket_offset, 0),
     )
     profile1 = bd.Spline(
         profile0 @ 1,
         (tip_x, config.bracket_height - config.bracket_thickness),
-        tangents=[(-1, 1), (-1, 0)],
+        tangents=[(-0, 1), (-1, 0)],
     )
     profile2 = bd.Polyline(
         profile1 @ 1,

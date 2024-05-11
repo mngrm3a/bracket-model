@@ -36,29 +36,49 @@ assemblies = {
         brush_bracket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
-            chamfers=socket.Chamfers(),
-            # chamfers=socket.Chamfers(
-            #     top=1,
-            #     bottom=1,
-            #     front=0,
-            #     back=1,
-            #     front_hole=0,
-            #     back_hole=0.5,
-            # ),
+            # chamfers=socket.Chamfers(),
+            chamfers=socket.Chamfers(
+                top=1,
+                bottom=1,
+                front=1,
+                back=1,
+                front_hole=0,
+                back_hole=0.5,
+            ),
             bracket_radius=15,
-            bracket_offset=1.5,
+            bracket_offset=5,
             bracket_thickness=4.5,
-            bracket_opening=120,
+            bracket_opening=150,
         ).validated()
     ),
+    # "sketch": brush_bracket.make_base_sketch(
+    #     brush_bracket.Config(
+    #         hole_profile=HOLE_PROFILE,
+    #         wall_thickness=2,
+    #         # chamfers=socket.Chamfers(),
+    #         chamfers=socket.Chamfers(
+    #             top=1,
+    #             bottom=1,
+    #             front=1,
+    #             back=1,
+    #             front_hole=0,
+    #             back_hole=0.5,
+    #         ),
+    #         bracket_radius=15,
+    #         bracket_offset=5,
+    #         bracket_thickness=4.5,
+    #         bracket_opening=150,
+    #     )
+    # ),
 }
 
 if len(sys.argv) == 2:
     bd.export_step(slotted_socket, os.path.abspath(sys.argv[1]))
 else:
-    viewer.show(
-        bd.pack(assemblies.values(), 2),
+    viewer.show_object(
+        # bd.pack(assemblies.values(), 2),
+        assemblies["brush"],
         measure_tools=False,
-        render_joints=True,
+        # render_joints=True,
         reset_camera=viewer.Camera.KEEP,
     )
