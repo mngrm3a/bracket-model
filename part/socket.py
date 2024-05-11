@@ -60,36 +60,36 @@ class Config:
     chamfers: Chamfers
 
     @property
-    def socket_size(self) -> float:
+    def size(self) -> float:
         return 2 * (self.hole_profile.max_radius + self.wall_thickness)
 
     @property
-    def socket_depth(self) -> float:
+    def depth(self) -> float:
         return self.hole_profile.depth
 
     def validated(self) -> Self:
         if self.wall_thickness < 0:
             raise ValueError(f"{self.wall_thickness=} < 0")
 
-        if self.chamfers.top + self.chamfers.bottom >= self.socket_size:
+        if self.chamfers.top + self.chamfers.bottom >= self.size:
             raise ValueError(
-                f"{(self.chamfers.top + self.chamfers.bottom)=} >= {self.socket_size=}"
+                f"{(self.chamfers.top + self.chamfers.bottom)=} >= {self.size=}"
             )
 
-        if self.chamfers.front + self.chamfers.back >= self.socket_depth:
+        if self.chamfers.front + self.chamfers.back >= self.depth:
             raise ValueError(
-                f"{(self.chamfers.front + self.chamfers.back)=} >= {self.socket_depth=}"
+                f"{(self.chamfers.front + self.chamfers.back)=} >= {self.depth=}"
             )
 
         if (
             self.chamfers.front_hole
-            >= self.socket_size / 2
+            >= self.size / 2
             - self.hole_profile.first_section.radius
             - self.chamfers.front
         ):
             raise ValueError(
                 f"{self.chamfers.front_hole=} >= "
-                f"{(self.socket_size/2 - self.hole_profile.first_section.radius - self.chamfers.front)=}"
+                f"{(self.size/2 - self.hole_profile.first_section.radius - self.chamfers.front)=}"
             )
         if self.chamfers.front_hole >= self.hole_profile.first_section.depth:
             raise ValueError(
@@ -98,13 +98,13 @@ class Config:
 
         if (
             self.chamfers.back_hole
-            >= self.socket_size / 2
+            >= self.size / 2
             - self.hole_profile.last_section.radius
             - self.chamfers.back
         ):
             raise ValueError(
                 f"{(self.chamfers.back_hole)=} >= "
-                f"{(self.socket_size/2 - self.hole_profile.last_section.radius - self.chamfers.back)=}"
+                f"{(self.size/2 - self.hole_profile.last_section.radius - self.chamfers.back)=}"
             )
         if self.chamfers.back_hole >= self.hole_profile.last_section.depth:
             raise ValueError(
@@ -115,12 +115,12 @@ class Config:
 
 
 def make_part(config: Config) -> bd.Part:
-    part = bd.Plane.ZX * bd.Rectangle(config.socket_size, config.socket_size)
+    part = bd.Plane.ZX * bd.Rectangle(config.size, config.size)
     if config.chamfers.top:
         part = bd.chamfer(part.vertices() >> bd.Axis.Z, config.chamfers.top)
     if config.chamfers.bottom:
         part = bd.chamfer(part.vertices() << bd.Axis.Z, config.chamfers.bottom)
-    part = bd.extrude(part, config.socket_depth)
+    part = bd.extrude(part, config.depth)
 
     for section in config.hole_profile:
         part -= bd.extrude(
@@ -142,7 +142,7 @@ def make_part(config: Config) -> bd.Part:
     if config.chamfers.back_hole:
         part = bd.chamfer(y_edges()[-1] | bd.GeomType.CIRCLE, config.chamfers.back_hole)
 
-    for j in [("top", (0, 0, config.socket_size / 2)), ("center", (0, 0, 0))]:
+    for j in [("top", (0, 0, config.size / 2)), ("center", (0, 0, 0))]:
         bd.RigidJoint(
             j[0],
             part,

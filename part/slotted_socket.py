@@ -1,16 +1,16 @@
 import build123d as bd
-import holder.socket
 from dataclasses import dataclass
+from part import socket
 from typing_extensions import Self
 
 
 @dataclass
-class Chamfers(holder.socket.Chamfers):
+class Chamfers(socket.Chamfers):
     slot: float = 0
 
 
 @dataclass
-class Config(holder.socket.Config):
+class Config(socket.Config):
     chamfers: Chamfers
     slot_size: float
     slot_offset: float
@@ -28,17 +28,16 @@ class Config(holder.socket.Config):
 
 
 def make_part(config: Config) -> bd.Part:
-    print(config.socket_depth)
-    part = holder.socket.make_part(config) - bd.extrude(
+    part = socket.make_part(config) - bd.extrude(
         (
             bd.Plane.YZ
             * bd.Pos(
                 config.slot_offset + config.slot_size / 2,
-                (config.socket_size - config.slot_size) / 2,
+                (config.size - config.slot_size) / 2,
             )
             * bd.Rectangle(config.slot_size, config.slot_size)
         ),
-        config.socket_size / 2,
+        config.size / 2,
         both=True,
     )
 
