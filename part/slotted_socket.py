@@ -33,11 +33,11 @@ def make_part(config: Config) -> bd.Part:
             bd.Plane.YZ
             * bd.Pos(
                 config.slot_offset + config.slot_size / 2,
-                (config.size - config.slot_size) / 2,
+                (config.socket_size - config.slot_size) / 2,
             )
             * bd.Rectangle(config.slot_size, config.slot_size)
         ),
-        config.size / 2,
+        config.socket_size / 2,
         both=True,
     )
 

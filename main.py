@@ -2,7 +2,7 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from part import socket, slotted_socket
+from part import socket, slotted_socket, brush_bracket
 
 
 HOLE_PROFILE = socket.HoleProfile(
@@ -23,14 +23,25 @@ assemblies = {
             slot_size=1.5,
             slot_offset=2,
         ).validated()
-    )
+    ),
+    "brush": brush_bracket.make_part(
+        brush_bracket.Config(
+            hole_profile=HOLE_PROFILE,
+            wall_thickness=2,
+            chamfers=brush_bracket.Chamfers(1, 1),
+            bracket_radius=15,
+            bracket_offset=5,
+            bracket_thickness=4,
+            bracket_opening=120,
+        ).validated()
+    ),
 }
 
 if len(sys.argv) == 2:
     bd.export_step(slotted_socket, os.path.abspath(sys.argv[1]))
 else:
     viewer.show(
-        assemblies["razor"],
+        bd.pack(assemblies.values(), 2),
         measure_tools=False,
         render_joints=True,
         reset_camera=viewer.Camera.KEEP,
