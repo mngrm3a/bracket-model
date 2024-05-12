@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+import build123d as bd
 import itertools
 import math
-import build123d as bd
+from dataclasses import dataclass
 from part import socket
 from typing_extensions import Self
 
@@ -15,7 +15,7 @@ class Config(socket.Config):
 
     @property
     def bracket_height(self) -> float:
-        return self.socket_size
+        return 0.75 * self.socket_size
 
     @property
     def socket_transition_angle(self) -> float:
@@ -32,7 +32,7 @@ class Config(socket.Config):
 
     @property
     def socket_transition_depth(self) -> float:
-        return self.socket_depth * 0.99
+        return self.socket_depth
 
     @property
     def tip_angle(self) -> float:
@@ -83,83 +83,93 @@ class Config(socket.Config):
 
 
 def make_part(config: Config) -> bd.Part:
-    part = bd.extrude(make_base_sketch(config), config.bracket_height) & bd.extrude(
+    part = bd.extrude(make_base_sketch(config), config.socket_size) & bd.extrude(
         bd.Plane.YZ * make_profile_sketch(config),
         config.bracket_radius + config.bracket_thickness,
     )
 
-    # def z_edges():
-    #     nonlocal part
-    #     return part.edges().filter_by(bd.Axis.Z, reverse=True).group_by(bd.Axis.Z)
+    def z_edges():
+        nonlocal part
+        return part.edges().filter_by(bd.Axis.Z, reverse=True).group_by(bd.Axis.Z)
 
-    # if config.chamfers.bottom:
-    #     part = bd.chamfer(
-    #         (
-    #             bd.ShapeList(itertools.chain(*z_edges()[:-1]))
-    #             .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :]
-    #             .sort_by(bd.Axis.Y)[:-1]
-    #         ),
-    #         config.chamfers.bottom,
-    #     )
+    if config.chamfers.bottom:
+        part = bd.chamfer(
+            (
+                bd.ShapeList(itertools.chain(*z_edges()[:-1]))
+                .sort_by(bd.Axis.Y)[:-1]
+                .sort_by(bd.Axis.X)[3 if config.bracket_opening else 4 :]
+            ),
+            config.chamfers.bottom,
+        )
 
-    # if config.chamfers.top:
-    #     part = bd.chamfer(
-    #         z_edges()[-1]
-    #         .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :]
-    #         .sort_by(bd.Axis.Y)[:-1],
-    #         config.chamfers.top,
-    #     )
+    if config.chamfers.top:
+        part = bd.chamfer(
+            z_edges()[-1]
+            .sort_by(bd.Axis.Y)[:-1]
+            .sort_by(bd.Axis.X)[1 if config.bracket_opening else 2 :],
+            config.chamfers.top,
+        )
 
+    if config.chamfers.front:
+        part = bd.chamfer(
+            z_edges()[0].sort_by(bd.Axis.Y)[0],
+            config.chamfers.front,
+        )
+
+    if config.chamfers.back:
+        part = bd.chamfer(
+            part.edges().group_by(bd.Axis.Y)[-1].sort_by(bd.Axis.X)[1:],
+            config.chamfers.back,
+        )
+
+    hole_y = (
+        config.bracket_radius
+        + config.bracket_offset
+        + config.socket_depth
+        - config.hole_profile.depth
+    )
+    for section in config.hole_profile:
+        part -= bd.extrude(
+            bd.Pos(0, hole_y, config.socket_size / 2)
+            * bd.Rot(90)
+            * bd.Circle(section.radius),
+            amount=-section.depth,
+        )
+        hole_y += section.depth
     part -= (
         bd.Plane.XZ
-        * bd.Pos(0, config.bracket_height - config.socket_size / 2)
+        * bd.Pos(0, config.socket_size / 2)
         * bd.Hole(
             config.hole_profile.first_section.radius,
             config.bracket_radius + config.bracket_offset,
         )
     )
 
-    # if config.chamfers.bottom:
-    #     part = bd.chamfer(
-    #         (
-    #             part.edges()
-    #             .filter_by(bd.GeomType.BSPLINE)
-    #             .sort_by_distance(
-    #                 (
-    #                     0,
-    #                     config.bracket_radius,
-    #                     config.bracket_height - config.socket_size / 2,
-    #                 ),
-    #             )[0:3]
-    #         ),
-    #         config.chamfers.bottom,
-    #     )
-
-    # ! BUG: mirror fails when the top is chamfered but the left most edge above
-    # ! the hole is not included.
-    # * WORKAROUND: Add a small tolerance by offsetting the plane.
-    # * SEE: https://discord.com/channels/964330484911972403/1074840524181217452/1237136617643442256
-    part += bd.mirror(part, bd.Plane.YZ.offset(0.0001 if config.chamfers.top else 0))
-
-    for j in [
-        (
-            "top",
-            (0, config.bracket_radius + config.bracket_offset, config.bracket_height),
-        ),
-        (
-            "center",
-            (
-                0,
-                config.bracket_radius + config.bracket_offset,
-                config.bracket_height - config.socket_size / 2,
-            ),
-        ),
-    ]:
-        bd.RigidJoint(
-            j[0],
-            part,
-            bd.Location(j[1], bd.Plane.XZ.location.orientation),
+    if config.chamfers.front_hole:
+        part = bd.chamfer(
+            part.edges()
+            .filter_by(
+                lambda e: (
+                    e.geom_type == bd.GeomType.BSPLINE
+                    or e.geom_type == bd.GeomType.CIRCLE
+                )
+                and e.center().Y <= config.bracket_radius + config.bracket_offset
+                and e.center().Y >= config.bracket_radius - 1
+            )
+            .sort_by_distance((0, config.bracket_radius, config.socket_size / 2))[
+                0 : 4 if config.chamfers.bottom else 3
+            ],
+            config.chamfers.front_hole,
         )
+
+    if config.chamfers.back_hole:
+        part = bd.chamfer(
+            part.edges().filter_by(bd.GeomType.CIRCLE).group_by(bd.Axis.Y)[-1],
+            config.chamfers.back_hole,
+        )
+
+    part += bd.mirror(part, bd.Plane.YZ)
+
     part.label = "Brush Bracket"
     return part
 
@@ -167,13 +177,10 @@ def make_part(config: Config) -> bd.Part:
 def make_base_sketch(config: Config) -> bd.Sketch:
     socket_line = bd.Polyline(
         (0, config.bracket_radius),
-        (0, config.bracket_radius + config.bracket_offset),
-        (config.socket_size / 2, config.bracket_radius + config.bracket_offset),
+        (0, config.bracket_radius + config.bracket_offset + config.socket_depth),
         (
             config.socket_size / 2,
-            config.bracket_radius
-            + config.bracket_offset
-            + config.socket_transition_depth,
+            config.bracket_radius + config.bracket_offset + config.socket_depth,
         ),
     )
     outer_arc = bd.CenterArc(
@@ -182,7 +189,7 @@ def make_base_sketch(config: Config) -> bd.Sketch:
         config.socket_transition_angle,
         -(config.socket_transition_angle + config.tip_angle),
     )
-    transition_line = bd.Spline(
+    transition_spline = bd.Spline(
         socket_line @ 1,
         outer_arc @ 0,
         tangents=[(0, -1), outer_arc.tangent_at(outer_arc @ 0)],
@@ -203,7 +210,9 @@ def make_base_sketch(config: Config) -> bd.Sketch:
     else:
         tip_line = bd.Line(outer_arc @ 1, inner_arc @ 0)
 
-    return bd.make_face([socket_line, transition_line, outer_arc, tip_line, inner_arc])
+    return bd.make_face(
+        [socket_line, transition_spline, outer_arc, tip_line, inner_arc]
+    )
 
 
 def make_profile_sketch(config: Config) -> bd.Sketch:
@@ -212,34 +221,41 @@ def make_profile_sketch(config: Config) -> bd.Sketch:
             config.bracket_radius + config.bracket_thickness,
             90 - config.tip_angle,
         )[0]
-        # NOTE avoid creating a separate face for the tip
+        # NOTE: avoid creating a separate face for the tip
         - config.tip_sagitta
         if config.bracket_opening
         else 0
     )
-
-    profile0 = bd.Polyline(
+    profile0_points = [
         (
-            config.bracket_radius
-            + config.bracket_offset
-            + config.socket_transition_depth,
-            config.bracket_height,
+            config.bracket_radius + config.bracket_offset + config.socket_depth,
+            config.socket_size,
         ),
         (config.bracket_radius + config.bracket_offset + config.socket_depth, 0),
         (config.bracket_radius + config.bracket_offset, 0),
-    )
+    ]
+    if config.socket_size > config.bracket_height:
+        profile0_points.append(
+            (
+                config.bracket_radius + config.bracket_offset,
+                config.socket_size - config.bracket_height,
+            ),
+        )
+
+    profile0 = bd.Polyline(profile0_points)
     profile1 = bd.Spline(
         profile0 @ 1,
-        (tip_x, config.bracket_height - config.bracket_thickness),
-        tangents=[(-0, 1), (-1, 0)],
+        (tip_x, config.socket_size - config.bracket_thickness),
+        tangents=[(0, 1), (-1, 0)],
+        tangent_scalars=[1, 1.5],
     )
     profile2 = bd.Polyline(
         profile1 @ 1,
         (
             -(config.bracket_radius + config.bracket_thickness),
-            config.bracket_height - config.bracket_thickness,
+            config.socket_size - config.bracket_thickness,
         ),
-        (-(config.bracket_radius + config.bracket_thickness), config.bracket_height),
+        (-(config.bracket_radius + config.bracket_thickness), config.socket_size),
         profile0 @ 0,
     )
 

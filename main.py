@@ -2,7 +2,7 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from part import socket, slotted_socket, brush_bracket, brush_holder
+from part import socket, slotted_socket, brush_bracket
 
 
 HOLE_PROFILE = socket.HoleProfile(
@@ -32,17 +32,16 @@ assemblies = {
             ),
         ).validated()
     ),
-    "brush": brush_holder.make_part(
+    "brush": brush_bracket.make_part(
         brush_bracket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
-            # chamfers=socket.Chamfers(),
             chamfers=socket.Chamfers(
-                top=1,
+                top=2,
                 bottom=1,
                 front=1,
                 back=1,
-                front_hole=0,
+                front_hole=1,
                 back_hole=0.5,
             ),
             bracket_radius=15,
@@ -51,34 +50,13 @@ assemblies = {
             bracket_opening=150,
         ).validated()
     ),
-    # "sketch": brush_bracket.make_base_sketch(
-    #     brush_bracket.Config(
-    #         hole_profile=HOLE_PROFILE,
-    #         wall_thickness=2,
-    #         # chamfers=socket.Chamfers(),
-    #         chamfers=socket.Chamfers(
-    #             top=1,
-    #             bottom=1,
-    #             front=1,
-    #             back=1,
-    #             front_hole=0,
-    #             back_hole=0.5,
-    #         ),
-    #         bracket_radius=15,
-    #         bracket_offset=5,
-    #         bracket_thickness=4.5,
-    #         bracket_opening=150,
-    #     )
-    # ),
 }
 
 if len(sys.argv) == 2:
     bd.export_step(slotted_socket, os.path.abspath(sys.argv[1]))
 else:
     viewer.show_object(
-        # bd.pack(assemblies.values(), 2),
-        assemblies["brush"],
-        measure_tools=False,
-        # render_joints=True,
+        bd.pack(assemblies.values(), 2),
+        measure_tools=True,
         reset_camera=viewer.Camera.KEEP,
     )
