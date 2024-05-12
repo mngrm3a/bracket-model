@@ -14,7 +14,7 @@ jobs:
     - name: Install dependencies
       run: pip install --upgrade pip && pip install -r requirements.txt
     - name: Build
-      run: mkdir output && python main.py "output/$GITHUB_SHA.step"
+      run: mkdir output && python main.py output
     - name: Archive
       uses: actions/upload-artifact@v4
       with:
