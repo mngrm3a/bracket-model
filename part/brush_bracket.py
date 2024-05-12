@@ -7,6 +7,11 @@ from typing_extensions import Self
 
 
 @dataclass
+class Chamfers(socket.Chamfers):
+    pass
+
+
+@dataclass
 class Config(socket.Config):
     bracket_radius: float
     bracket_offset: float

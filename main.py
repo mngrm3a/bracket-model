@@ -2,10 +2,10 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from part import hole_profile, socket, slotted_socket, brush_bracket
+from part import socket, razor_bracket, brush_bracket
 
 
-HOLE_PROFILE = hole_profile.HoleProfile(
+HOLE_PROFILE = socket.HoleProfile(
     [
         (7, 4),  # nut top
         (4.5, 3),  # nut bottom
@@ -15,13 +15,13 @@ HOLE_PROFILE = hole_profile.HoleProfile(
 )
 
 assemblies = {
-    "razor": slotted_socket.make_part(
-        slotted_socket.Config(
+    "razor": razor_bracket.make_part(
+        razor_bracket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
             slot_size=1.5,
             slot_offset=2,
-            chamfers=slotted_socket.Chamfers(
+            chamfers=razor_bracket.Chamfers(
                 top=1,
                 bottom=1,
                 front=1,
@@ -36,7 +36,7 @@ assemblies = {
         brush_bracket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
-            chamfers=socket.Chamfers(
+            chamfers=brush_bracket.Chamfers(
                 top=2,
                 bottom=1,
                 front=1,
@@ -53,7 +53,7 @@ assemblies = {
 }
 
 if len(sys.argv) == 2:
-    bd.export_step(slotted_socket, os.path.abspath(sys.argv[1]))
+    bd.export_step(razor_bracket, os.path.abspath(sys.argv[1]))
 else:
     viewer.show_object(
         bd.pack(assemblies.values(), 2),
