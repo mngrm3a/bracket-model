@@ -5,7 +5,6 @@ import sys
 import pathlib
 from part import socket, razor_bracket, brush_bracket
 
-
 HOLE_PROFILE = socket.HoleProfile(
     [
         (7, 4),  # nut top
@@ -61,6 +60,25 @@ if len(sys.argv) == 2:
             output_file = output_dir.joinpath(f"{name}.step")
             print(f"Writing {output_file}")
             bd.export_step(assembly, str(output_dir.joinpath(f"{name}.step")))
+    elif sys.argv[1] == "screenshot":
+        part = bd.Compound(children=bd.pack(assemblies.values(), 1))
+        part_bbox = part.bounding_box()
+        visible_edges, hidden_edges = part.project_to_viewport(
+            part_bbox.center()
+            + bd.polar(part_bbox.size.Y / 2, -145)
+            + (0, 0, part_bbox.size.Z / 2)
+        )
+        max_dimension = max(
+            *bd.Compound(children=visible_edges + hidden_edges).bounding_box().size
+        )
+        exporter = bd.ExportSVG(scale=2.5 * 100 / max_dimension)
+        exporter.add_layer("Visible")
+        exporter.add_layer(
+            "Hidden", line_color=(99, 99, 99), line_type=bd.LineType.ISO_DOT
+        )
+        exporter.add_shape(visible_edges, layer="Visible")
+        exporter.add_shape(hidden_edges, layer="Hidden")
+        exporter.write("screenshot.svg")
 else:
     viewer.show_object(
         bd.pack(assemblies.values(), 2),
