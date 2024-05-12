@@ -2,6 +2,7 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
+import pathlib
 from part import socket, razor_bracket, brush_bracket
 
 
@@ -28,7 +29,7 @@ assemblies = {
                 back=1,
                 front_hole=1,
                 back_hole=0.5,
-                slot=0,
+                slot=0.5,
             ),
         ).validated()
     ),
@@ -36,24 +37,30 @@ assemblies = {
         brush_bracket.Config(
             hole_profile=HOLE_PROFILE,
             wall_thickness=2,
+            bracket_radius=15,
+            bracket_offset=5,
+            bracket_thickness=4.5,
+            bracket_opening=150,
             chamfers=brush_bracket.Chamfers(
-                top=2,
+                top=1,
                 bottom=1,
                 front=1,
                 back=1,
                 front_hole=1,
                 back_hole=0.5,
             ),
-            bracket_radius=15,
-            bracket_offset=5,
-            bracket_thickness=4.5,
-            bracket_opening=150,
         ).validated()
     ),
 }
 
+
 if len(sys.argv) == 2:
-    bd.export_step(razor_bracket, os.path.abspath(sys.argv[1]))
+    output_dir = pathlib.Path(sys.argv[1]).resolve()
+    if output_dir.is_dir() and os.access(output_dir, os.W_OK):
+        for name, assembly in assemblies.items():
+            output_file = output_dir.joinpath(f"{name}.step")
+            print(f"Writing {output_file}")
+            bd.export_step(assembly, str(output_dir.joinpath(f"{name}.step")))
 else:
     viewer.show_object(
         bd.pack(assemblies.values(), 2),

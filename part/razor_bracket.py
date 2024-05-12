@@ -71,10 +71,12 @@ class Config(socket.Config):
 
 def make_part(config: Config) -> bd.Part:
     part = bd.Plane.ZX * bd.Rectangle(config.socket_size, config.socket_size)
+
     if config.chamfers.top:
         part = bd.chamfer(part.vertices() >> bd.Axis.Z, config.chamfers.top)
     if config.chamfers.bottom:
         part = bd.chamfer(part.vertices() << bd.Axis.Z, config.chamfers.bottom)
+
     part = bd.extrude(part, config.socket_depth)
 
     for section in config.hole_profile:
