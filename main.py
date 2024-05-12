@@ -2,10 +2,10 @@ import build123d as bd
 import ocp_vscode as viewer
 import os
 import sys
-from part import socket, slotted_socket, brush_bracket
+from part import hole_profile, socket, slotted_socket, brush_bracket
 
 
-HOLE_PROFILE = socket.HoleProfile(
+HOLE_PROFILE = hole_profile.HoleProfile(
     [
         (7, 4),  # nut top
         (4.5, 3),  # nut bottom
