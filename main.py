@@ -1,8 +1,8 @@
+import argparse
 import build123d as bd
 import ocp_vscode as viewer
-import os
-import sys
 import pathlib
+import tempfile
 from part import socket, razor_bracket, brush_bracket
 
 HOLE_PROFILE = socket.HoleProfile(
@@ -14,54 +14,83 @@ HOLE_PROFILE = socket.HoleProfile(
     ]
 )
 
-assemblies = {
-    "razor": razor_bracket.make_part(
-        razor_bracket.Config(
-            hole_profile=HOLE_PROFILE,
-            wall_thickness=2,
-            slot_size=1.5,
-            slot_offset=2,
-            chamfers=razor_bracket.Chamfers(
-                top=1,
-                bottom=1,
-                front=1,
-                back=1,
-                front_hole=1,
-                back_hole=0.5,
-                slot=0.5,
-            ),
-        ).validated()
-    ),
-    "brush": brush_bracket.make_part(
-        brush_bracket.Config(
-            hole_profile=HOLE_PROFILE,
-            wall_thickness=2,
-            bracket_radius=15,
-            bracket_offset=5,
-            bracket_thickness=4.5,
-            bracket_opening=150,
-            chamfers=brush_bracket.Chamfers(
-                top=1,
-                bottom=1,
-                front=1,
-                back=1,
-                front_hole=1,
-                back_hole=0.5,
-            ),
-        ).validated()
-    ),
-}
+
+def assemblies() -> dict[str, bd.Part]:
+    return {
+        "razor": razor_bracket.make_part(
+            razor_bracket.Config(
+                hole_profile=HOLE_PROFILE,
+                wall_thickness=2,
+                slot_size=1.5,
+                slot_offset=2,
+                chamfers=razor_bracket.Chamfers(
+                    top=1,
+                    bottom=1,
+                    front=1,
+                    back=1,
+                    front_hole=1,
+                    back_hole=0.5,
+                    slot=0.5,
+                ),
+            ).validated()
+        ),
+        "brush": brush_bracket.make_part(
+            brush_bracket.Config(
+                hole_profile=HOLE_PROFILE,
+                wall_thickness=2,
+                bracket_radius=15,
+                bracket_offset=5,
+                bracket_thickness=4.5,
+                bracket_opening=150,
+                chamfers=brush_bracket.Chamfers(
+                    top=1,
+                    bottom=1,
+                    front=1,
+                    back=1,
+                    front_hole=1,
+                    back_hole=0.5,
+                ),
+            ).validated()
+        ),
+    }
 
 
-if len(sys.argv) == 2:
-    output_dir = pathlib.Path(sys.argv[1]).resolve()
-    if output_dir.is_dir() and os.access(output_dir, os.W_OK):
-        for name, assembly in assemblies.items():
-            output_file = output_dir.joinpath(f"{name}.step")
-            print(f"Writing {output_file}")
-            bd.export_step(assembly, str(output_dir.joinpath(f"{name}.step")))
-    elif sys.argv[1] == "screenshot":
-        part = bd.Compound(children=bd.pack(assemblies.values(), 1))
+def logged_io(path, io):
+    try:
+        print(f"Writing '{path}': ", end="")
+        io(path)
+        print("Ok")
+    except Exception as e:
+        print(f"Failed ({type(e).__name__})")
+
+
+parser = argparse.ArgumentParser(description="Generate the bracket model.")
+parser.add_argument(
+    "action",
+    choices=["export", "screenshot", "view"],
+    default="view",
+    help="action to perform",
+)
+parser.add_argument(
+    "--dest",
+    dest="destination",
+    default=tempfile.gettempdir(),
+    help="destination directory",
+)
+args = parser.parse_args()
+
+match args.action:
+    case "export":
+        for path, assembly in [
+            (
+                str(pathlib.Path(args.destination).resolve().joinpath(f"{key}.step")),
+                value,
+            )
+            for key, value in assemblies().items()
+        ]:
+            logged_io(path, lambda p: bd.export_step(assembly, p))
+    case "screenshot":
+        part = bd.Compound(children=bd.pack(assemblies().values(), 2))
         part_bbox = part.bounding_box()
         visible_edges, hidden_edges = part.project_to_viewport(
             part_bbox.center()
@@ -78,10 +107,13 @@ if len(sys.argv) == 2:
         )
         exporter.add_shape(visible_edges, layer="Visible")
         exporter.add_shape(hidden_edges, layer="Hidden")
-        exporter.write("screenshot.svg")
-else:
-    viewer.show_object(
-        bd.pack(assemblies.values(), 2),
-        measure_tools=True,
-        reset_camera=viewer.Camera.KEEP,
-    )
+        logged_io(
+            pathlib.Path(args.destination).resolve().joinpath("screenshot.svg"),
+            exporter.write,
+        )
+    case "view":
+        viewer.show_object(
+            bd.pack(assemblies().values(), 2),
+            measure_tools=True,
+            reset_camera=viewer.Camera.KEEP,
+        )
